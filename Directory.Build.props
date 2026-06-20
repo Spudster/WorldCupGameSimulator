@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    Shared MSBuild settings for every project in the solution.
+    Per the project spec: nullable reference types ON, warnings-as-errors ON.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- We hand-write XML docs on public APIs but do not force CS1591 on every member. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

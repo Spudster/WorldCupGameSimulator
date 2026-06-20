@@ -1,0 +1,12 @@
+# Normalise line endings: stored as LF in the repo, checked out native on each OS.
+* text=auto
+
+# Scripts that must keep their platform line endings.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.sh  text eol=lf
+
+# Treat data/JSON as text.
+*.json text
+*.cs   text
+*.md   text

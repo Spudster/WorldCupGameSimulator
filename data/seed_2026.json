@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "name": "FIFA World Cup 2026",
+    "hosts": [ "Canada", "Mexico", "United States" ],
+    "finalDateUtc": "2026-07-19T00:00:00Z",
+    "sourceNote": "Official Final Draw (5 Dec 2025) with March 2026 playoff winners resolved (BIH, SWE, TUR, CZE, COD, IRQ). Strength ratings derived from the FIFA/Coca-Cola Men's World Ranking points of 11 June 2026. Player squads are SYNTHETIC (deterministically generated from team strength) and flagged as such."
+  },
+  "teams": [
+    { "code": "MEX", "name": "Mexico", "confederation": "CONCACAF", "group": "A", "pot": 1, "strength": 74.1, "fifaRanking": 14 },
+    { "code": "KOR", "name": "South Korea", "confederation": "AFC", "group": "A", "pot": 2, "strength": 66.2, "fifaRanking": 25 },
+    { "code": "RSA", "name": "South Africa", "confederation": "CAF", "group": "A", "pot": 3, "strength": 52.7, "fifaRanking": 60 },
+    { "code": "CZE", "name": "Czechia", "confederation": "UEFA", "group": "A", "pot": 4, "strength": 59.1, "fifaRanking": 40 },
+
+    { "code": "CAN", "name": "Canada", "confederation": "CONCACAF", "group": "B", "pot": 1, "strength": 63.5, "fifaRanking": 30 },
+    { "code": "SUI", "name": "Switzerland", "confederation": "UEFA", "group": "B", "pot": 2, "strength": 71.0, "fifaRanking": 19 },
+    { "code": "QAT", "name": "Qatar", "confederation": "AFC", "group": "B", "pot": 3, "strength": 54.5, "fifaRanking": 56 },
+    { "code": "BIH", "name": "Bosnia and Herzegovina", "confederation": "UEFA", "group": "B", "pot": 4, "strength": 49.3, "fifaRanking": 64 },
+
+    { "code": "BRA", "name": "Brazil", "confederation": "CONMEBOL", "group": "C", "pot": 1, "strength": 80.6, "fifaRanking": 6 },
+    { "code": "MAR", "name": "Morocco", "confederation": "CAF", "group": "C", "pot": 2, "strength": 79.7, "fifaRanking": 7 },
+    { "code": "SCO", "name": "Scotland", "confederation": "UEFA", "group": "C", "pot": 3, "strength": 58.9, "fifaRanking": 42 },
+    { "code": "HAI", "name": "Haiti", "confederation": "CONCACAF", "group": "C", "pot": 4, "strength": 41.6, "fifaRanking": 83 },
+
+    { "code": "USA", "name": "United States", "confederation": "CONCACAF", "group": "D", "pot": 1, "strength": 72.8, "fifaRanking": 17 },
+    { "code": "AUS", "name": "Australia", "confederation": "AFC", "group": "D", "pot": 2, "strength": 65.2, "fifaRanking": 27 },
+    { "code": "PAR", "name": "Paraguay", "confederation": "CONMEBOL", "group": "D", "pot": 3, "strength": 59.1, "fifaRanking": 41 },
+    { "code": "TUR", "name": "Türkiye", "confederation": "UEFA", "group": "D", "pot": 4, "strength": 67.4, "fifaRanking": 22 },
+
+    { "code": "GER", "name": "Germany", "confederation": "UEFA", "group": "E", "pot": 1, "strength": 78.1, "fifaRanking": 10 },
+    { "code": "ECU", "name": "Ecuador", "confederation": "CONMEBOL", "group": "E", "pot": 2, "strength": 66.8, "fifaRanking": 23 },
+    { "code": "CIV", "name": "Ivory Coast", "confederation": "CAF", "group": "E", "pot": 3, "strength": 62.0, "fifaRanking": 33 },
+    { "code": "CUW", "name": "Curaçao", "confederation": "CONCACAF", "group": "E", "pot": 4, "strength": 41.7, "fifaRanking": 82 },
+
+    { "code": "NED", "name": "Netherlands", "confederation": "UEFA", "group": "F", "pot": 1, "strength": 79.6, "fifaRanking": 8 },
+    { "code": "JPN", "name": "Japan", "confederation": "AFC", "group": "F", "pot": 2, "strength": 72.0, "fifaRanking": 18 },
+    { "code": "TUN", "name": "Tunisia", "confederation": "CAF", "group": "F", "pot": 3, "strength": 56.7, "fifaRanking": 45 },
+    { "code": "SWE", "name": "Sweden", "confederation": "UEFA", "group": "F", "pot": 4, "strength": 59.4, "fifaRanking": 38 },
+
+    { "code": "BEL", "name": "Belgium", "confederation": "UEFA", "group": "G", "pot": 1, "strength": 78.6, "fifaRanking": 9 },
+    { "code": "IRN", "name": "Iran", "confederation": "AFC", "group": "G", "pot": 2, "strength": 68.5, "fifaRanking": 20 },
+    { "code": "EGY", "name": "Egypt", "confederation": "CAF", "group": "G", "pot": 3, "strength": 63.8, "fifaRanking": 29 },
+    { "code": "NZL", "name": "New Zealand", "confederation": "OFC", "group": "G", "pot": 4, "strength": 40.1, "fifaRanking": 85 },
+
+    { "code": "ESP", "name": "Spain", "confederation": "UEFA", "group": "H", "pot": 1, "strength": 89.6, "fifaRanking": 2 },
+    { "code": "URU", "name": "Uruguay", "confederation": "CONMEBOL", "group": "H", "pot": 2, "strength": 72.9, "fifaRanking": 16 },
+    { "code": "KSA", "name": "Saudi Arabia", "confederation": "AFC", "group": "H", "pot": 3, "strength": 52.4, "fifaRanking": 61 },
+    { "code": "CPV", "name": "Cape Verde", "confederation": "CAF", "group": "H", "pot": 4, "strength": 48.0, "fifaRanking": 67 },
+
+    { "code": "FRA", "name": "France", "confederation": "UEFA", "group": "I", "pot": 1, "strength": 89.2, "fifaRanking": 3 },
+    { "code": "SEN", "name": "Senegal", "confederation": "CAF", "group": "I", "pot": 2, "strength": 73.8, "fifaRanking": 15 },
+    { "code": "NOR", "name": "Norway", "confederation": "UEFA", "group": "I", "pot": 3, "strength": 63.4, "fifaRanking": 31 },
+    { "code": "IRQ", "name": "Iraq", "confederation": "AFC", "group": "I", "pot": 4, "strength": 54.2, "fifaRanking": 57 },
+
+    { "code": "ARG", "name": "Argentina", "confederation": "CONMEBOL", "group": "J", "pot": 1, "strength": 89.8, "fifaRanking": 1 },
+    { "code": "AUT", "name": "Austria", "confederation": "UEFA", "group": "J", "pot": 2, "strength": 66.7, "fifaRanking": 24 },
+    { "code": "ALG", "name": "Algeria", "confederation": "CAF", "group": "J", "pot": 3, "strength": 64.5, "fifaRanking": 28 },
+    { "code": "JOR", "name": "Jordan", "confederation": "AFC", "group": "J", "pot": 4, "strength": 49.4, "fifaRanking": 63 },
+
+    { "code": "POR", "name": "Portugal", "confederation": "UEFA", "group": "K", "pot": 1, "strength": 80.7, "fifaRanking": 5 },
+    { "code": "COL", "name": "Colombia", "confederation": "CONMEBOL", "group": "K", "pot": 2, "strength": 75.0, "fifaRanking": 13 },
+    { "code": "UZB", "name": "Uzbekistan", "confederation": "AFC", "group": "K", "pot": 3, "strength": 55.2, "fifaRanking": 50 },
+    { "code": "COD", "name": "DR Congo", "confederation": "CAF", "group": "K", "pot": 4, "strength": 56.5, "fifaRanking": 46 },
+
+    { "code": "ENG", "name": "England", "confederation": "UEFA", "group": "L", "pot": 1, "strength": 85.7, "fifaRanking": 4 },
+    { "code": "CRO", "name": "Croatia", "confederation": "UEFA", "group": "L", "pot": 2, "strength": 76.4, "fifaRanking": 11 },
+    { "code": "PAN", "name": "Panama", "confederation": "CONCACAF", "group": "L", "pot": 3, "strength": 61.9, "fifaRanking": 34 },
+    { "code": "GHA", "name": "Ghana", "confederation": "CAF", "group": "L", "pot": 4, "strength": 46.0, "fifaRanking": 73 }
+  ]
+}
