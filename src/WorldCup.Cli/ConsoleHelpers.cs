@@ -198,6 +198,38 @@ public static class ConsoleHelpers
         {
             Ui.Warning($"Couldn't open the browser ({ex.Message}). Open the file manually: {path}");
         }
+
+        // Also pop open the containing folder so the HTML, its PNG and any siblings are right there.
+        OpenContainingFolder(path);
+    }
+
+    /// <summary>
+    /// Reveal the folder that contains <paramref name="path"/> in the OS file manager (selecting the file
+    /// where supported). Best-effort and fully guarded — any failure is swallowed so it never disrupts the
+    /// report flow.
+    /// </summary>
+    public static void OpenContainingFolder(string path)
+    {
+        try
+        {
+            string full = Path.GetFullPath(path);
+            if (OperatingSystem.IsWindows())
+            {
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{full}\"");
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                System.Diagnostics.Process.Start("open", new[] { "-R", full });
+            }
+            else
+            {
+                System.Diagnostics.Process.Start("xdg-open", new[] { Path.GetDirectoryName(full) ?? full });
+            }
+        }
+        catch
+        {
+            // Best-effort: never let opening the folder disrupt the report flow.
+        }
     }
 
     /// <summary>
