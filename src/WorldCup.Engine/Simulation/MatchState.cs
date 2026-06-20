@@ -48,6 +48,9 @@ internal sealed class MatchState
     private readonly List<BadCallEvent> _badCalls = new();
     private readonly List<CoolingBreak> _coolingBreaks = new();
     private readonly List<Confrontation> _confrontations = new();
+    private readonly List<NearMiss> _nearMisses = new();
+    private readonly List<VarCheck> _varChecks = new();
+    private Weather? _weather;
     private int _temperatureC;
     private readonly MiracleEvent? _miracle;
 
@@ -664,6 +667,92 @@ internal sealed class MatchState
             _confrontations.Add(new Confrontation(t.Minute, level, bench, t.Cause, desc));
             made++;
         }
+
+        // --- Match-day weather: descriptive flavour only. It never touches the event stream. ---
+        WeatherKind wk = PickWeatherKind(temperatureC, ref rng);
+        _weather = new Weather(wk, WeatherNarratives.Note(wk, ref rng));
+
+        // --- Near-misses & woodwork: the notable chances that did NOT go in. Drawn here (after the final
+        // whistle) so they are pure flavour and never change the score. The more a side attacked (its
+        // goals tally is the proxy), the more it threatened. ---
+        int nearMisses = 2 + rng.NextInt(4); // 2–5 notable near-misses per match
+        for (int i = 0; i < nearMisses; i++)
+        {
+            bool home = Distributions.Chance(ref rng, (HomeGoals + 1.0) / (HomeGoals + AwayGoals + 2.0));
+            var pitch = home ? _homeOnPitch : _awayOnPitch;
+            if (pitch.Count == 0)
+            {
+                continue;
+            }
+
+            var pl = PickByPosition(ref rng, pitch, Position.FWD);
+            NearMissKind kind = PickNearMissKind(ref rng);
+            int minute = 5 + rng.NextInt(86);
+            string code = home ? _home.Code : _away.Code;
+            _nearMisses.Add(new NearMiss(minute, code, pl.Name, kind, NearMissNarratives.Describe(kind, pl.Name, ref rng)));
+        }
+
+        _nearMisses.Sort((a, b) => a.Minute.CompareTo(b.Minute));
+
+        // --- VAR drama: attribution-only. A check either CONFIRMS a goal that already counted or waves an
+        // appeal away — it never adds or removes a goal/card/penalty, so the calibrated totals stand. ---
+        foreach (var gl in _goals.Where(g => !g.IsPenalty && !g.IsOwnGoal))
+        {
+            if (_varChecks.Count < 2 && Distributions.Chance(ref rng, 0.20))
+            {
+                double vr = rng.NextDouble();
+                VarKind vk = vr < 0.62 ? VarKind.OffsideOnGoal : vr < 0.86 ? VarKind.HandballOnGoal : VarKind.GoalLine;
+                _varChecks.Add(new VarCheck(gl.Minute, gl.TeamCode, vk, true, VarNarratives.Describe(vk, ref rng)));
+            }
+        }
+
+        if (_varChecks.Count < 2 && Distributions.Chance(ref rng, 0.16))
+        {
+            bool appealHome = rng.NextDouble() < 0.5;
+            _varChecks.Add(new VarCheck(10 + rng.NextInt(78), appealHome ? _home.Code : _away.Code,
+                VarKind.PenaltyAppeal, true, VarNarratives.Describe(VarKind.PenaltyAppeal, ref rng)));
+        }
+
+        _varChecks.Sort((a, b) => a.Minute.CompareTo(b.Minute));
+    }
+
+    private static WeatherKind PickWeatherKind(int temperatureC, ref Xoshiro256 rng)
+    {
+        double r = rng.NextDouble();
+        if (temperatureC >= 33)
+        {
+            // Baking hot day games: sun and oppressive humidity dominate; rain is very rare.
+            return r < 0.50 ? WeatherKind.Sunny : r < 0.82 ? WeatherKind.Humid : r < 0.95 ? WeatherKind.Clear : WeatherKind.Breezy;
+        }
+
+        if (temperatureC >= 28)
+        {
+            return r < 0.34 ? WeatherKind.Sunny : r < 0.58 ? WeatherKind.Humid : r < 0.74 ? WeatherKind.Clear
+                : r < 0.86 ? WeatherKind.Breezy : r < 0.95 ? WeatherKind.Windy : WeatherKind.LightRain;
+        }
+
+        if (temperatureC >= 22)
+        {
+            return r < 0.26 ? WeatherKind.Clear : r < 0.44 ? WeatherKind.Sunny : r < 0.60 ? WeatherKind.Overcast
+                : r < 0.74 ? WeatherKind.Breezy : r < 0.85 ? WeatherKind.Windy : r < 0.94 ? WeatherKind.LightRain : WeatherKind.HeavyRain;
+        }
+
+        // Cooler evenings / venues.
+        return r < 0.24 ? WeatherKind.Overcast : r < 0.40 ? WeatherKind.Clear : r < 0.56 ? WeatherKind.Breezy
+            : r < 0.72 ? WeatherKind.Windy : r < 0.86 ? WeatherKind.LightRain : r < 0.94 ? WeatherKind.HeavyRain : WeatherKind.Cold;
+    }
+
+    private static NearMissKind PickNearMissKind(ref Xoshiro256 rng)
+    {
+        double r = rng.NextDouble();
+        return r < 0.22 ? NearMissKind.JustWide
+            : r < 0.40 ? NearMissKind.BlazedOver
+            : r < 0.55 ? NearMissKind.HeaderOff
+            : r < 0.68 ? NearMissKind.GreatBlock
+            : r < 0.79 ? NearMissKind.OffTheLine
+            : r < 0.88 ? NearMissKind.HitThePost
+            : r < 0.95 ? NearMissKind.HitTheBar
+            : NearMissKind.RattledTheWoodwork;
     }
 
     private string TeamNameOf(string code) => string.Equals(code, _home.Code, StringComparison.OrdinalIgnoreCase) ? _home.Name : _away.Name;
@@ -741,8 +830,11 @@ internal sealed class MatchState
             FirstHalfStoppage = FirstHalfStoppage,
             SecondHalfStoppage = SecondHalfStoppage,
             TemperatureC = _temperatureC,
+            Weather = _weather,
             CoolingBreaks = _coolingBreaks,
             Confrontations = _confrontations,
+            NearMisses = _nearMisses,
+            VarChecks = _varChecks,
             Goals = goals,
             Cards = cards,
             Penalties = penalties,

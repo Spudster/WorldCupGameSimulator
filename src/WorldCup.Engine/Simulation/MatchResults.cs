@@ -269,6 +269,57 @@ public sealed record Confrontation(
     string Cause,
     string Description);
 
+/// <summary>The match-day weather. Descriptive flavour only — it colours the commentary and the
+/// conditions readout without altering the calibrated event stream.</summary>
+public enum WeatherKind
+{
+    Clear,
+    Sunny,
+    Overcast,
+    Breezy,
+    Windy,
+    LightRain,
+    HeavyRain,
+    Humid,
+    Cold,
+}
+
+/// <summary>Match-day conditions: a weather kind plus a one-line descriptive note.</summary>
+public sealed record Weather(WeatherKind Kind, string Note);
+
+/// <summary>How a chance that did NOT go in came to nothing — woodwork, a goal-line clearance, a great
+/// block, or an agonising miss.</summary>
+public enum NearMissKind
+{
+    HitThePost,
+    HitTheBar,
+    OffTheLine,
+    GreatBlock,
+    BlazedOver,
+    JustWide,
+    HeaderOff,
+    RattledTheWoodwork,
+}
+
+/// <summary>A near-miss / woodwork moment (detailed mode). Generated after the final whistle, so it is
+/// pure flavour and never changes the score.</summary>
+public sealed record NearMiss(int Minute, string TeamCode, string PlayerName, NearMissKind Kind, string Description);
+
+/// <summary>What a VAR check looked at.</summary>
+public enum VarKind
+{
+    OffsideOnGoal,
+    HandballOnGoal,
+    PenaltyAppeal,
+    PossibleRed,
+    GoalLine,
+}
+
+/// <summary>A VAR check on an existing decision. Attribution-only: it narrates the drama of the review
+/// but never adds or removes a goal/card/penalty, so the calibrated totals are untouched.
+/// <see cref="DecisionStands"/> is true when the original on-field decision is upheld.</summary>
+public sealed record VarCheck(int Minute, string TeamCode, VarKind Kind, bool DecisionStands, string Description);
+
 /// <summary>Per-team box-score totals for a single match (detailed mode).</summary>
 public sealed record TeamBoxScore(
     string TeamCode,
@@ -327,6 +378,16 @@ public sealed record MatchResult
 
     /// <summary>On-field flashpoints / confrontations during the match (detailed mode).</summary>
     public IReadOnlyList<Confrontation> Confrontations { get; init; } = Array.Empty<Confrontation>();
+
+    /// <summary>Match-day weather (detailed mode) — descriptive flavour, no effect on the event stream.</summary>
+    public Weather? Weather { get; init; }
+
+    /// <summary>Near-misses and woodwork — chances that rattled the frame, were cleared off the line or
+    /// flashed wide (detailed mode). Pure flavour; never affects the score.</summary>
+    public IReadOnlyList<NearMiss> NearMisses { get; init; } = Array.Empty<NearMiss>();
+
+    /// <summary>VAR checks / review drama on existing decisions (detailed mode) — attribution-only.</summary>
+    public IReadOnlyList<VarCheck> VarChecks { get; init; } = Array.Empty<VarCheck>();
 
     /// <summary>True when this is a real, already-played result locked in "current state" mode.</summary>
     public bool IsLocked { get; init; }

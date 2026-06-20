@@ -227,9 +227,23 @@ public static class HtmlExporter
             b.Append(Fact("Biggest lead", $"+{Math.Max(flow.MaxHomeLead, flow.MaxAwayLead)}", flow.MaxHomeLead >= flow.MaxAwayLead ? E(m.HomeName) : E(m.AwayName)));
         if (m.ShootoutRounds > 0) b.Append(Fact("Shootout", $"{m.HomePens}–{m.AwayPens}", $"{m.ShootoutRounds} rounds"));
         if (m.FirstHalfStoppage > 0 || m.SecondHalfStoppage > 0) b.Append(Fact("⏱ Added time", $"+{m.FirstHalfStoppage} / +{m.SecondHalfStoppage}", "1st / 2nd half"));
-        if (m.TemperatureC > 0) b.Append(Fact("🌡 Conditions", $"{m.TemperatureC}°C", m.CoolingBreaks.Count > 0 ? $"{m.CoolingBreaks.Count} cooling breaks" : "no breaks needed"));
+        if (m.TemperatureC > 0)
+        {
+            var (wIcon, wLabel) = m.Weather is { } cw ? WeatherNarratives.Badge(cw.Kind) : ("🌡", "");
+            string condVal = string.IsNullOrEmpty(wLabel) ? $"{m.TemperatureC}°C" : $"{E(wLabel)}, {m.TemperatureC}°C";
+            string condSub = m.Weather is { } cw2 ? E(cw2.Note) : (m.CoolingBreaks.Count > 0 ? $"{m.CoolingBreaks.Count} cooling breaks" : "no breaks needed");
+            b.Append(Fact($"{wIcon} Conditions", condVal, condSub));
+        }
+
         var crowd = new Crowd(m);
         b.Append(Fact("👥 Crowd", $"{crowd.Attendance:N0}", crowd.Partisan ? $"~{(int)Math.Round(Math.Max(crowd.HomeSupportShare, 1 - crowd.HomeSupportShare) * 100)}% {E(crowd.DominantName)}" : "even split"));
+        if (m.NearMisses.Count > 0)
+        {
+            int wood = m.NearMisses.Count(n => n.Kind is NearMissKind.HitThePost or NearMissKind.HitTheBar or NearMissKind.RattledTheWoodwork);
+            b.Append(Fact("🪵 Near misses", m.NearMisses.Count.ToString(), wood > 0 ? $"{wood} off the woodwork" : "close calls"));
+        }
+
+        if (m.VarChecks.Count > 0) b.Append(Fact("📺 VAR checks", m.VarChecks.Count.ToString(), "to the monitor"));
         if (m.Confrontations.Count > 0) b.Append(Fact("🤬 Flashpoints", m.Confrontations.Count.ToString(), m.Confrontations.Any(c => c.BenchInvolved) ? "benches involved" : "tempers frayed"));
         if (m.Miracle is { } mira) b.Append(Fact("✨ Miracle", E(mira.TeamName), "caught fire"));
         int errGoals = m.Errors.Count(e => e.LedToGoal);
@@ -432,6 +446,31 @@ public static class HtmlExporter
                     _ => $"<span class='badge red'>BRAWL{(cf.BenchInvolved ? " · benches" : "")}</span>",
                 };
                 b.Append($"<tr><td class='dim'>{cf.Minute}'</td><td>{lvl}</td><td>{E(cf.Description)}</td></tr>");
+            }
+
+            b.Append("</table></div>");
+        }
+
+        // Near-misses & woodwork.
+        if (m.NearMisses.Count > 0)
+        {
+            b.Append("<div class='card'><h2>🪵 Near misses &amp; woodwork</h2><table class='lst'><tr class='th'><td>Min</td><td>Team</td><td>What happened</td></tr>");
+            foreach (var nm in m.NearMisses.OrderBy(x => x.Minute))
+            {
+                var (icon, _) = NearMissNarratives.Badge(nm.Kind);
+                b.Append($"<tr><td class='dim'>{nm.Minute}'</td><td class='dim'>{E(nm.TeamCode)}</td><td>{icon} {E(nm.Description)}</td></tr>");
+            }
+
+            b.Append("</table></div>");
+        }
+
+        // VAR reviews.
+        if (m.VarChecks.Count > 0)
+        {
+            b.Append("<div class='card'><h2>📺 VAR drama</h2><table class='lst'><tr class='th'><td>Min</td><td>Team</td><td>Review</td></tr>");
+            foreach (var v in m.VarChecks.OrderBy(x => x.Minute))
+            {
+                b.Append($"<tr><td class='dim'>{v.Minute}'</td><td class='dim'>{E(v.TeamCode)}</td><td>{E(v.Description)}</td></tr>");
             }
 
             b.Append("</table></div>");

@@ -29,7 +29,7 @@ public static class CommentaryGenerator
     /// <summary>The crowd voice id (chants and reactions from the stands).</summary>
     public const string CrowdVoice = "CRD";
 
-    private enum Kind { StandaloneError, Card, Penalty, Goal, Save, Injury, Sub, BadCall, CoolingBreak, Confrontation }
+    private enum Kind { StandaloneError, Card, Penalty, Goal, Save, Injury, Sub, BadCall, CoolingBreak, Confrontation, NearMiss, Var }
 
     private sealed record Moment(int Minute, Kind Kind, int Order, object Payload);
 
@@ -52,6 +52,11 @@ public static class CommentaryGenerator
         if (m.TemperatureC >= 30)
         {
             Co(0, $"Sweltering out there too — {m.TemperatureC}°C — so we'll get the mandatory cooling breaks, compulsory under the 2026 heat protocol.");
+        }
+
+        if (m.Weather is { } weather)
+        {
+            Co(0, WeatherNarratives.Mention(weather.Kind, ref rng));
         }
 
         Crd(0, crowd.PreMatch(ref rng));
@@ -102,7 +107,11 @@ public static class CommentaryGenerator
                 int fm = (mo.Minute + lastSpokenMinute) / 2;
                 if (fm >= 75 && Math.Abs(hg - ag) <= 1)
                 {
-                    Crd(fm, crowd.LatePush(ref rng));
+                    // Late and tight: with a single goal in it the leaders' end is a bag of nerves while
+                    // the chasing end roars for an equaliser; level and late, both ends push it forward.
+                    Crd(fm, Math.Abs(hg - ag) == 1 && rng.NextDouble() < 0.5
+                        ? crowd.Tension(ref rng)
+                        : crowd.LatePush(ref rng));
                 }
                 else if (rng.NextDouble() < 0.45)
                 {
@@ -128,6 +137,8 @@ public static class CommentaryGenerator
                 case Kind.Save: EmitSave((SaveEvent)mo.Payload); break;
                 case Kind.CoolingBreak: EmitCoolingBreak((CoolingBreak)mo.Payload); break;
                 case Kind.Confrontation: EmitConfrontation((Confrontation)mo.Payload); break;
+                case Kind.NearMiss: EmitNearMiss((NearMiss)mo.Payload); break;
+                case Kind.Var: EmitVar((VarCheck)mo.Payload); break;
             }
         }
 
@@ -314,6 +325,18 @@ public static class CommentaryGenerator
             Co(cb.Minute, "These breaks are compulsory in this heat at the 2026 finals — and a chance for the coaches to get their messages across, too. Tactical gold.");
         }
 
+        void EmitNearMiss(NearMiss nm)
+        {
+            Pbp(nm.Minute, $"OH, so close! {nm.Description}!");
+            Crd(nm.Minute, crowd.NearMiss(ref rng));
+        }
+
+        void EmitVar(VarCheck v)
+        {
+            Crd(v.Minute, crowd.Tension(ref rng)); // the stadium holds its breath through the review
+            Pbp(v.Minute, v.Description);
+        }
+
         void EmitConfrontation(Confrontation cf)
         {
             Pbp(cf.Minute, cf.Description);
@@ -495,6 +518,16 @@ public static class CommentaryGenerator
         foreach (var cf in m.Confrontations)
         {
             list.Add(new Moment(cf.Minute, Kind.Confrontation, (int)Kind.Confrontation, cf));
+        }
+
+        foreach (var nm in m.NearMisses)
+        {
+            list.Add(new Moment(nm.Minute, Kind.NearMiss, (int)Kind.NearMiss, nm));
+        }
+
+        foreach (var v in m.VarChecks)
+        {
+            list.Add(new Moment(v.Minute, Kind.Var, (int)Kind.Var, v));
         }
 
         return list.OrderBy(x => x.Minute).ThenBy(x => x.Order).ToList();

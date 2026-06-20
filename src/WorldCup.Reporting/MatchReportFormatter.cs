@@ -38,8 +38,11 @@ public static class MatchReportFormatter
         if (m.HomeBox is not null)
         {
             var crowd = new WorldCup.Engine.Simulation.Crowd(m);
+            string weather = m.Weather is { } w
+                ? $" · {WorldCup.Engine.Simulation.WeatherNarratives.Badge(w.Kind).Icon} {Markup.Escape(w.Note)}"
+                : "";
             string heat = m.TemperatureC > 0 ? $" · {m.TemperatureC}°C{(m.CoolingBreaks.Count > 0 ? " 🥤 cooling breaks taken" : "")}" : "";
-            AnsiConsole.MarkupLine($"[{Ui.Muted}]🎺 {Markup.Escape(crowd.Summary)}{heat}[/]");
+            AnsiConsole.MarkupLine($"[{Ui.Muted}]🎺 {Markup.Escape(crowd.Summary)}{weather}{heat}[/]");
         }
 
         if (m.Miracle is { } mira)
@@ -119,7 +122,9 @@ public static class MatchReportFormatter
         PrintPenalties(m);
         PrintShootout(m);
         PrintSaves(m);
+        PrintNearMisses(m);
         PrintInjuries(m);
+        PrintVar(m);
         PrintConfrontations(m);
         PrintErrorsAndControversy(m);
 
@@ -400,6 +405,45 @@ public static class MatchReportFormatter
         {
             string r = s.IsAmazing ? $"[red3]{s.Rating:0.0} 🔥[/]" : s.Rating >= 6.5 ? $"[gold1]{s.Rating:0.0}[/]" : $"{s.Rating:0.0}";
             table.AddRow($"{s.Minute}'", Markup.Escape(s.KeeperName), Markup.Escape(s.TeamCode), $"{s.ShotDistanceMeters:0.0}m", r);
+        }
+
+        AnsiConsole.Write(table);
+    }
+
+    private static void PrintNearMisses(MatchResult m)
+    {
+        if (m.NearMisses.Count == 0)
+        {
+            return;
+        }
+
+        var table = Ui.Table("[bold]🪵 Near misses & woodwork[/]");
+        table.AddColumn(new TableColumn("Min").RightAligned());
+        table.AddColumn("Team");
+        table.AddColumn("What happened");
+        foreach (var nm in m.NearMisses.OrderBy(x => x.Minute))
+        {
+            var (icon, _) = WorldCup.Engine.Simulation.NearMissNarratives.Badge(nm.Kind);
+            table.AddRow($"{nm.Minute}'", Markup.Escape(nm.TeamCode), $"{icon} {Markup.Escape(nm.Description)}");
+        }
+
+        AnsiConsole.Write(table);
+    }
+
+    private static void PrintVar(MatchResult m)
+    {
+        if (m.VarChecks.Count == 0)
+        {
+            return;
+        }
+
+        var table = Ui.Table("[bold]📺 VAR drama[/]");
+        table.AddColumn(new TableColumn("Min").RightAligned());
+        table.AddColumn("Team");
+        table.AddColumn("Review");
+        foreach (var v in m.VarChecks.OrderBy(x => x.Minute))
+        {
+            table.AddRow($"{v.Minute}'", Markup.Escape(v.TeamCode), Markup.Escape(v.Description));
         }
 
         AnsiConsole.Write(table);
