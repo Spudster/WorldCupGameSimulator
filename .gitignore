@@ -1,0 +1,37 @@
+## Local secrets / config (API keys) — never commit
+config.local.json
+
+## Generated reports / saved games / snapshots (everything the app writes)
+output/
+
+## Live-API response cache
+data/cache/
+
+## Original build prompt (dev artifact — not part of the public app)
+prompt.txt
+
+## .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+
+## Visual Studio
+.vs/
+*.user
+
+## Exported reports / saved parameter files produced at runtime
+*.csv
+*.json.bak
+parameters*.json
+tournament_*.json
+tournament_*.csv
+match_*.json
+mc_*.json
+mc_*.csv
+fixture_*.json
+
+## Keep the bundled data files
+!data/seed_2026.json
+!data/results_2026.json
+/data/results_2026.json
