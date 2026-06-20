@@ -493,6 +493,7 @@ public sealed partial class App
             string path = OutputFolder.Resolve($"scheduled_forecasts_{fileTag}.html");
             HtmlExporter.ScheduledForecastsToHtml(batch, path);
             Ui.Success($"Wrote {path}");
+            ConsoleHelpers.SnapshotHtml(path);
             ConsoleHelpers.OpenInBrowser(path);
         }
 
@@ -562,6 +563,7 @@ public sealed partial class App
             string dir = OutputFolder.Subdir($"scheduled_games_{fileTag}");
             string index = HtmlExporter.ScheduledInstancesBundle(results, dir);
             Ui.Success($"Wrote {results.Count} full game reports (+ commentary transcripts) and an index to {dir}");
+            ConsoleHelpers.SnapshotHtmlDir(dir);
             ConsoleHelpers.OpenInBrowser(index);
         }
 
@@ -658,6 +660,7 @@ public sealed partial class App
             string dir = OutputFolder.Subdir($"worldcup_2026_{championName.Replace(' ', '_')}");
             string index = HtmlExporter.TournamentBundle(result, stats, data, dir);
             Ui.Success($"Wrote {index} (+ bracket.html, stats.html)");
+            ConsoleHelpers.SnapshotHtmlDir(dir, 1650, 4200);
             ConsoleHelpers.OpenInBrowser(index);
         }
 
@@ -715,6 +718,7 @@ public sealed partial class App
         Directory.CreateDirectory(OutputFolder.Root);
         HtmlExporter.TournamentToHtml(result, _session.Data, path);
         Ui.Success($"Wrote {path}");
+        ConsoleHelpers.SnapshotHtml(path, 1650, 4200);
         ConsoleHelpers.OpenInBrowser(path);
     }
 
@@ -1000,6 +1004,7 @@ public sealed partial class App
                 string path = OutputFolder.Resolve($"group_{group}_outlook.html");
                 HtmlExporter.GroupOutlookToHtml(outlook, path);
                 Ui.Success($"Wrote {path}");
+                ConsoleHelpers.SnapshotHtml(path);
                 ConsoleHelpers.OpenInBrowser(path);
             }
 
@@ -1025,6 +1030,7 @@ public sealed partial class App
             string path = OutputFolder.Resolve(file);
             HtmlExporter.GroupPathToHtml(analysis, path);
             Ui.Success($"Wrote {path}");
+            ConsoleHelpers.SnapshotHtml(path);
             ConsoleHelpers.OpenInBrowser(path);
         }
 
@@ -1318,6 +1324,7 @@ public sealed partial class App
                 string path = OutputFolder.Resolve($"match_{home.Code}_{away.Code}_{m.HomeGoals}-{m.AwayGoals}.html");
                 HtmlExporter.MatchResultToHtml(m, path);
                 Ui.Success($"Wrote {path}");
+                ConsoleHelpers.SnapshotHtml(path, 1500, 3000);
                 if (Nav.Confirm("Open it now?", true))
                 {
                     ConsoleHelpers.OpenInBrowser(path);

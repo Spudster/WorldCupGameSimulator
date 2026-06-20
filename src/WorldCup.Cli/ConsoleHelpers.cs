@@ -141,7 +141,7 @@ public static class ConsoleHelpers
         return Nav.Confirm($"This will run [bold]{n:N0}[/] simulations. Proceed?");
     }
 
-    public static void OfferExports(string baseName, Action<string> writeJson, Action<string>? writeCsv, Action<string>? writeHtml = null)
+    public static void OfferExports(string baseName, Action<string> writeJson, Action<string>? writeCsv, Action<string>? writeHtml = null, int pngWidth = 1500, int pngHeight = 3200)
     {
         var choices = new List<string>();
         if (writeHtml is not null) choices.Add("HTML (styled page)");
@@ -166,6 +166,7 @@ public static class ConsoleHelpers
             string path = Path.Combine(dir, baseName + ".html");
             writeHtml(path);
             Ui.Success($"Wrote {path}");
+            SnapshotHtml(path, pngWidth, pngHeight); // every HTML download also gets a PNG copy
             if (Nav.Confirm("Open it in your browser?", true))
             {
                 OpenInBrowser(path);
@@ -196,6 +197,50 @@ public static class ConsoleHelpers
         catch (Exception ex)
         {
             Ui.Warning($"Couldn't open the browser ({ex.Message}). Open the file manually: {path}");
+        }
+    }
+
+    /// <summary>
+    /// Render a just-written HTML report to a PNG sibling (same path, .png) via a headless browser, so every
+    /// download produces both an HTML page and a shareable image. Silent no-op when no browser is installed.
+    /// </summary>
+    public static void SnapshotHtml(string htmlPath, int width = 1500, int height = 3200)
+    {
+        if (!BrowserShot.Available)
+        {
+            return;
+        }
+
+        string pngPath = Path.ChangeExtension(htmlPath, ".png");
+        bool ok = false;
+        string diag = string.Empty;
+        AnsiConsole.Status().Start("🖼  Rendering PNG…", _ =>
+        {
+            ok = BrowserShot.TrySave(htmlPath, pngPath, width, height, out string d);
+            diag = d;
+        });
+
+        if (ok)
+        {
+            Ui.Success($"Wrote {pngPath}");
+        }
+        else
+        {
+            Ui.Warning($"Couldn't save a PNG ({diag}) — the HTML page is still there.");
+        }
+    }
+
+    /// <summary>Render every <c>.html</c> file in a bundle directory to a PNG sibling.</summary>
+    public static void SnapshotHtmlDir(string dir, int width = 1500, int height = 3600)
+    {
+        if (!BrowserShot.Available || !Directory.Exists(dir))
+        {
+            return;
+        }
+
+        foreach (var html in Directory.EnumerateFiles(dir, "*.html"))
+        {
+            SnapshotHtml(html, width, height);
         }
     }
 

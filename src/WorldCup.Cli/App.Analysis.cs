@@ -126,6 +126,7 @@ public sealed partial class App
                 string sp = OutputFolder.Resolve("award_odds.html");
                 HtmlExporter.StatsToHtml(stats, sp);
                 Ui.Success($"Wrote {sp}");
+                ConsoleHelpers.SnapshotHtml(sp);
                 ConsoleHelpers.OpenInBrowser(sp);
             }
         }
@@ -600,6 +601,7 @@ public sealed partial class App
             string path = OutputFolder.Resolve($"group_{group}_scenarios.html");
             HtmlExporter.GroupPermutationsToHtml(perms, path);
             Ui.Success($"Wrote {path}");
+            ConsoleHelpers.SnapshotHtml(path);
             ConsoleHelpers.OpenInBrowser(path);
         }
 
@@ -653,6 +655,7 @@ public sealed partial class App
             string dir = OutputFolder.Subdir($"worldcup_2026_{champ.Replace(' ', '_')}");
             string index = HtmlExporter.TournamentBundle(result, stats, data, dir);
             Ui.Success($"Wrote {index}");
+            ConsoleHelpers.SnapshotHtmlDir(dir, 1650, 4200);
             ConsoleHelpers.OpenInBrowser(index);
         }
 
