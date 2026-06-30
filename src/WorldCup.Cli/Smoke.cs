@@ -123,6 +123,32 @@ public static class Smoke
         HtmlExporter.ScheduledForecastsToHtml(batch9, schedHtml);
         Ui.Info($"Wrote scheduled-forecast HTML to {schedHtml} ({forecasts9.Count} games).");
 
+        // 9b) Run knockout games — resolve the dated bracket from current results (projected where groups
+        // are unfinished) and forecast a small slate (e.g. the Round of 32) with decisive advance odds.
+        Ui.Header("Smoke 9b — run knockout games (resolve bracket + forecast advance odds)");
+        var koSchedule = KnockoutScheduleResolver.Resolve(
+            data, session.PlayedResults, p, p.Global.Seed, session.IncludeThirdPlacePlayoff);
+        Ui.Info(koSchedule.AllGroupsComplete
+            ? "All groups complete — Round-of-32 matchups are settled."
+            : $"Group(s) {string.Join(", ", koSchedule.IncompleteGroups)} unfinished — those matchups are projected (※).");
+        var koRunnable = koSchedule.Fixtures
+            .Where(f => !f.Played && f.IsResolved && f.Stage == Stage.RoundOf32)
+            .OrderBy(f => f.KickoffUtc)
+            .Take(3) // keep the smoke quick (≈ one day of the R32)
+            .ToList();
+        var koGames = koRunnable.Select(f =>
+        {
+            var report = MonteCarloMatchRunner.RunAggregate(
+                data.Team(f.HomeCode!), data.Team(f.AwayCode!), p, 4_000, f.Stage, neutralVenue: true);
+            return new KnockoutGameForecast(f.MatchId, f.Stage, Stages.DisplayName(f.Stage), f.Label, f.KickoffUtc, f.Projected, report);
+        }).ToList();
+        var koBatch = new KnockoutForecastReport(
+            4_000, p.Label, p.Global.Seed, 0, $"Round of 32 (first {koGames.Count})", koGames.Any(g => g.Projected), koGames);
+        MatchReportFormatter.PrintKnockoutForecasts(koBatch);
+        string koHtml = Path.Combine(Path.GetTempPath(), "smoke_knockout_forecasts.html");
+        HtmlExporter.KnockoutForecastsToHtml(koBatch, koHtml);
+        Ui.Info($"Wrote knockout-forecast HTML to {koHtml} ({koGames.Count} ties).");
+
         // 10) Play-by-play announcer transcript for a single match (+ sibling .txt written on HTML download).
         Ui.Header("Smoke 10 — play-by-play announcer commentary");
         var commRng = new Xoshiro256(p.Global.Seed ^ 0xC0FFEEUL);

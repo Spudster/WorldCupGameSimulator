@@ -31,6 +31,15 @@ public sealed class SimulationParameters
     public HashSet<string> UnavailablePlayers { get; set; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Team code → a recent-form strength delta (points on the 0–100 scale), derived from already-played
+    /// results by <c>FormModel</c>: positive when a team has over-performed its rating (e.g. an underdog
+    /// holding a favourite), negative when it has under-performed. Empty by default — so pre-tournament
+    /// odds and the calibration are unchanged — and populated only for "current state" forward
+    /// predictions, so a team's last game carries into its next. Scaled by <see cref="GlobalParameters.FormWeight"/>.
+    /// </summary>
+    public Dictionary<string, double> TeamFormDeltas { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Player ids forced to the front of their position when picking the XI — used to correct the
     /// projected starter (e.g. the real first-choice goalkeeper) when the roster's listing order
     /// doesn't reflect who actually starts. Honoured by <see cref="LineupProjector"/> in both the
@@ -52,15 +61,20 @@ public sealed class SimulationParameters
     {
         double baseStrength = TeamStrengthOverrides.TryGetValue(team.Code, out double s) ? s : team.Strength;
 
+        // Recent-form nudge from already-played results (0 unless populated for a current-state forecast).
+        double formDelta = Global.FormWeight > 0 && TeamFormDeltas.TryGetValue(team.Code, out double fd)
+            ? Global.FormWeight * fd
+            : 0.0;
+
         // Skip the (allocating) XI projection entirely unless the squad has actually been altered.
         if (Global.SquadQualityWeight <= 0 ||
             (FormationOverrides.Count == 0 && UnavailablePlayers.Count == 0 && PlayerAttributeOverrides.Count == 0))
         {
-            return baseStrength;
+            return formDelta != 0.0 ? Math.Max(5.0, baseStrength + formDelta) : baseStrength;
         }
 
         double delta = SquadRating(team, effective: true) - SquadRating(team, effective: false);
-        return Math.Max(5.0, baseStrength + Global.SquadQualityWeight * delta); // floor avoids a degenerate 0/negative strength
+        return Math.Max(5.0, baseStrength + formDelta + Global.SquadQualityWeight * delta); // floor avoids a degenerate 0/negative strength
     }
 
     /// <summary>Average recovered overall rating of a team's starting XI (the squad-quality signal).</summary>
@@ -116,6 +130,7 @@ public sealed class SimulationParameters
         FormationOverrides = new Dictionary<string, string>(FormationOverrides, StringComparer.OrdinalIgnoreCase),
         UnavailablePlayers = new HashSet<string>(UnavailablePlayers, StringComparer.Ordinal),
         PreferredStarters = new HashSet<string>(PreferredStarters, StringComparer.Ordinal),
+        TeamFormDeltas = new Dictionary<string, double>(TeamFormDeltas, StringComparer.OrdinalIgnoreCase),
         Label = Label,
     };
 

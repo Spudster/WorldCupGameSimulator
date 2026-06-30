@@ -1,3 +1,4 @@
+using WorldCup.Data.Models;
 using WorldCup.Engine.Simulation;
 
 namespace WorldCup.Engine.Tournament;
@@ -67,7 +68,51 @@ public sealed record ScheduledForecastReport(
     string ParameterLabel,
     ulong Seed,
     double ElapsedSeconds,
-    IReadOnlyList<ScheduledGameForecast> Games);
+    IReadOnlyList<ScheduledGameForecast> Games)
+{
+    /// <summary>Recent-form strength adjustments folded into this batch (empty when form was off or no
+    /// games had been played yet) — surfaced so the reader can see <em>why</em> a forecast moved.</summary>
+    public IReadOnlyList<FormAdjustment> FormAdjustments { get; init; } = Array.Empty<FormAdjustment>();
+}
+
+/// <summary>The Monte Carlo forecast for one scheduled knockout fixture (decisive: ET/penalties fold into the winner).</summary>
+public sealed record KnockoutGameForecast(
+    int MatchId, Stage Stage, string RoundLabel, string Label, DateTime KickoffUtc, bool Projected, MatchAggregateReport Report)
+{
+    /// <summary>1 = top side favoured to advance, -1 = bottom side. (Knockouts always produce a winner.)</summary>
+    public int Favourite => Report.HomeWin >= Report.AwayWin ? 1 : -1;
+
+    /// <summary>Probability the favoured side advances.</summary>
+    public double AdvanceProbability => Math.Max(Report.HomeWin, Report.AwayWin);
+
+    /// <summary>The most likely scoreline consistent with the favoured side advancing (falls back to the modal scoreline).</summary>
+    public ScorelineFrequency? PredictedScore
+    {
+        get
+        {
+            foreach (var s in Report.TopScorelines)
+            {
+                int sign = s.HomeGoals > s.AwayGoals ? 1 : s.HomeGoals < s.AwayGoals ? -1 : 0;
+                if (sign == Favourite)
+                {
+                    return s;
+                }
+            }
+
+            return Report.TopScorelines.Count > 0 ? Report.TopScorelines[0] : null;
+        }
+    }
+}
+
+/// <summary>A batch forecast of every scheduled knockout fixture in scope, each simulated the same number of times.</summary>
+public sealed record KnockoutForecastReport(
+    long IterationsPerGame,
+    string ParameterLabel,
+    ulong Seed,
+    double ElapsedSeconds,
+    string ScopeLabel,
+    bool AnyProjected,
+    IReadOnlyList<KnockoutGameForecast> Games);
 
 /// <summary>The single best (highest-vergazo) goal seen across all simulated runs of a matchup.</summary>
 public sealed record BestGoalInfo(

@@ -157,6 +157,22 @@ public static class HtmlExporter
             b.Append("</div></div>");
         }
 
+        // Recent-form adjustments folded into the forecast (why a team's odds moved).
+        if (r.FormAdjustments.Count > 0)
+        {
+            b.Append("<div class='card'><h2>📈 Recent form factored in</h2>");
+            b.Append("<p class='note'>Each team's already-played game(s) nudge its effective strength for the fixtures below — up when a result beat the model's expectation, down when it fell short.</p>");
+            b.Append("<table class='lst'><tr class='th'><td>Team</td><td class='r'>Form</td><td>Last result</td></tr>");
+            foreach (var a in r.FormAdjustments)
+            {
+                string cls = a.Delta > 0.05 ? "gwin" : a.Delta < -0.05 ? "bad" : "dim";
+                string move = $"{(a.Delta >= 0 ? "+" : "−")}{Math.Abs(a.Delta).ToString("0.0", Inv)}";
+                b.Append($"<tr><td>{E(FlagName(a.TeamCode, a.TeamName))}</td><td class='r'><b class='{cls}'>{move}</b></td><td class='dim'>{E(a.Summary)}</td></tr>");
+            }
+
+            b.Append("</table></div>");
+        }
+
         b.Append("<div class='card'><h2>Remaining fixtures — forecast</h2><table class='lst'>");
         b.Append("<tr class='th'><td>Kickoff (local)</td><td>Grp</td><td>MD</td><td>Match <span class='dim'>(favourite bold)</span></td><td class='r'>Score</td><td>Result odds — home / draw / away</td><td class='r'>xG</td></tr>");
         foreach (var f in r.Games.OrderBy(g => g.KickoffUtc).ThenBy(g => g.Group).ThenBy(g => g.Matchday))
@@ -175,6 +191,58 @@ public static class HtmlExporter
         Write(path, "World Cup 2026 — Scheduled fixtures forecast", b.ToString(),
             $"{r.ParameterLabel} · seed {r.Seed} · {r.IterationsPerGame:N0} sims/game · {r.Games.Count} games · forecast in {N1(r.ElapsedSeconds)}s");
     }
+
+    // ---------------------------------------------------------------- knockout fixtures forecast
+
+    public static void KnockoutForecastsToHtml(KnockoutForecastReport r, string path)
+    {
+        var b = new StringBuilder();
+        b.Append($"<div class='hero'><div class='hero-tag'>KNOCKOUT FIXTURES · {r.IterationsPerGame:N0} SIMS / GAME</div>");
+        b.Append($"<div class='vs'><div class='side'>{E(r.ScopeLabel)}</div></div>");
+        b.Append($"<div class='hero-sub'>Who advances in each tie (extra time &amp; penalties included) · {E(r.ParameterLabel)}</div></div>");
+
+        if (r.Games.Count > 0)
+        {
+            string FavName(KnockoutGameForecast g) => g.Favourite == 1 ? g.Report.HomeName : g.Report.AwayName;
+            var biggest = r.Games.MaxBy(g => g.AdvanceProbability)!;
+            var closest = r.Games.MinBy(g => g.AdvanceProbability)!;
+
+            b.Append("<div class='card'><h2>Highlights</h2><div class='chips'>");
+            b.Append(Stat("Surest to advance", $"{E(FavName(biggest))} <span class='dim'>{P(biggest.AdvanceProbability)}</span>"));
+            b.Append(Stat("Closest tie", $"{E(closest.Report.HomeName)} v {E(closest.Report.AwayName)} <span class='dim'>{P(closest.AdvanceProbability)}</span>"));
+            b.Append("</div></div>");
+        }
+
+        b.Append("<div class='card'><h2>Knockout fixtures — who advances</h2><table class='lst'>");
+        b.Append("<tr class='th'><td>Kickoff (local)</td><td>Round</td><td>Tie <span class='dim'>(favourite bold)</span></td><td class='r'>Score</td><td>Advance — top / bottom</td><td class='r'>xG</td></tr>");
+        foreach (var g in r.Games.OrderBy(x => x.KickoffUtc).ThenBy(x => x.MatchId))
+        {
+            var m = g.Report;
+            string home = g.Favourite == 1 ? $"<b class='gwin'>{E(FlagName(m.HomeCode, m.HomeName))}</b>" : E(FlagName(m.HomeCode, m.HomeName));
+            string away = g.Favourite == -1 ? $"<b class='gwin'>{E(FlagName(m.AwayCode, m.AwayName))}</b>" : E(FlagName(m.AwayCode, m.AwayName));
+            string score = g.PredictedScore is { } s ? $"{s.HomeGoals}–{s.AwayGoals}" : "–";
+            string kickoff = g.KickoffUtc.ToLocalTime().ToString("MMM d HH:mm", Inv);
+            string proj = g.Projected ? " <span class='dim' title='matchup projected from an unfinished group'>※</span>" : "";
+            b.Append($"<tr><td class='dim'>{E(kickoff)}</td><td class='dim'>{E(g.Label)}</td><td>{home} <span class='dim'>v</span> {away}{proj}</td><td class='r'><b>{score}</b></td><td>{AdvanceSplit(m.HomeWin, m.AwayWin)}</td><td class='r dim'>{N1(m.AvgHomeGoals)}–{N1(m.AvgAwayGoals)}</td></tr>");
+        }
+
+        b.Append("</table>");
+        if (r.AnyProjected)
+        {
+            b.Append("<p class='note'>※ matchup projected from current form — its group has not finished, so the teams may still change.</p>");
+        }
+
+        b.Append("<p class='note'>Advance = the share of simulations in which a side reaches the next round, with extra time and penalties resolving level ties.</p></div>");
+
+        Write(path, "World Cup 2026 — Knockout fixtures forecast", b.ToString(),
+            $"{r.ParameterLabel} · seed {r.Seed} · {r.IterationsPerGame:N0} sims/game · {r.Games.Count} games · forecast in {N1(r.ElapsedSeconds)}s");
+    }
+
+    private static string AdvanceSplit(double top, double bottom) =>
+        "<div class='wdlsplit'>" +
+        $"<span class='seg sh' style='width:{Px(top * 100)}%'></span>" +
+        $"<span class='seg sa' style='width:{Px(bottom * 100)}%'></span></div>" +
+        $"<div class='wdlnum'><span class='nh'>{P(top)}</span><span class='na'>{P(bottom)}</span></div>";
 
     private static string WdlSplit(double h, double d, double a) =>
         "<div class='wdlsplit'>" +

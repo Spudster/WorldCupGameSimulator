@@ -160,6 +160,33 @@ public sealed class GlobalParameters
     /// <summary>Per-minute decay of the momentum swing back toward neutral (0.90 ≈ a ~7-minute half-life).</summary>
     public double MomentumDecayPerMinute { get; set; } = 0.90;
 
+    // --- Recent form (current-state forward predictions) ---
+    // Carry a team's already-played results into its upcoming-game forecasts. Each played game is
+    // scored by how its actual goal difference compared with what the strength model expected, and the
+    // team's effective strength is nudged up (over-performed) or down (under-performed) for its next
+    // games. This only applies when played results are supplied (via TeamFormDeltas), so pre-tournament
+    // odds and the model calibration — which use no played results — are completely unaffected.
+
+    /// <summary>
+    /// How strongly recent form moves a team's effective strength in forward predictions. 0 = ignore
+    /// form (pure pre-tournament ratings); 1 = full weight. Multiplies the per-team delta computed from
+    /// played results, so e.g. Cape Verde holding Spain to a draw lifts them for Cape Verde v Uruguay.
+    /// </summary>
+    public double FormWeight { get; set; } = 1.0;
+
+    /// <summary>Strength points (0–100 scale) awarded per goal of over-/under-performance versus the
+    /// model's expected goal difference in a played game (before the cap and recency weighting).</summary>
+    public double FormGoalDiffToStrength { get; set; } = 3.0;
+
+    /// <summary>Maximum absolute strength adjustment (points) recent form can apply to a team, so a
+    /// single freak result can't turn a minnow into a giant or a giant into a minnow.</summary>
+    public double FormMaxDelta { get; set; } = 6.0;
+
+    /// <summary>Recency weighting when a team has played several games: the most recent game has weight 1,
+    /// the one before it this factor, the one before that this factor squared, and so on (0–1; lower =
+    /// only the latest result really matters).</summary>
+    public double FormRecencyDecay { get; set; } = 0.6;
+
     // --- Miracles (giant-killings) ---
     // A rare, realistic event where an underdog "catches fire" for the day: it claws back most of the
     // strength gap for this one match, which is what actually produces a genuine upset. The pre-match

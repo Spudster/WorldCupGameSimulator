@@ -1,11 +1,11 @@
 namespace WorldCup.Engine.Tournament;
 
 /// <summary>
-/// Assigns the eight qualifying third-placed teams to the eight group-winner R32 slots. FIFA's full
-/// 495-row Annex C table is approximated by a deterministic bipartite matching that honours the
-/// per-slot eligibility sets (and, failing that, the fundamental "no same-group rematch" rule). The
-/// result is reproducible (not random) and never pairs a third-placed team against a side from its
-/// own group.
+/// Assigns the eight qualifying third-placed teams to the eight group-winner R32 slots. Uses FIFA's
+/// official <see cref="ThirdPlaceAnnexC"/> table (the published 495-combination lookup), so the bracket
+/// matches the real tournament exactly. Falls back to a deterministic bipartite matching that honours the
+/// per-slot eligibility sets only for inputs the table does not cover. Never pairs a third-placed team
+/// against a side from its own group.
 /// </summary>
 public static class ThirdPlaceAssigner
 {
@@ -20,6 +20,13 @@ public static class ThirdPlaceAssigner
         IReadOnlyList<char> qualifyingThirdGroups,
         IReadOnlyDictionary<char, IReadOnlyList<char>> eligible)
     {
+        // FIFA's official allocation is a fixed table, not a rule — prefer it so the bracket is exact.
+        var official = ThirdPlaceAnnexC.Assign(qualifyingThirdGroups);
+        if (official is not null)
+        {
+            return official;
+        }
+
         var sortedThirds = qualifyingThirdGroups.OrderBy(c => c).ToArray();
 
         var strict = TryMatch(winnerGroups, sortedThirds, eligible, strict: true);

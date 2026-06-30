@@ -1,4 +1,5 @@
 using Spectre.Console;
+using WorldCup.Data.Models;
 using WorldCup.Engine.Simulation;
 using WorldCup.Engine.Tournament;
 
@@ -819,6 +820,8 @@ public static class MatchReportFormatter
 
         AnsiConsole.Write(table);
 
+        PrintFormAdjustments(r.FormAdjustments);
+
         // A couple of quick highlights to orient the eye.
         var biggest = r.Games.MaxBy(g => Math.Max(g.Report.HomeWin, g.Report.AwayWin));
         var tightest = r.Games.MinBy(g => Math.Max(g.Report.HomeWin, g.Report.AwayWin));
@@ -840,6 +843,98 @@ public static class MatchReportFormatter
 
         AnsiConsole.MarkupLine($"[{Ui.Muted}]Forecast over {r.IterationsPerGame:N0} sims/game · completed in {r.ElapsedSeconds:0.0}s. Heat: green = likely → grey = remote.[/]");
         AnsiConsole.MarkupLine($"[{Ui.Muted}]Score = most likely scoreline for the forecast result. A favourite's win is spread over many scorelines, so the single most-common score is often a draw or 1–0.[/]");
+    }
+
+    /// <summary>One scannable table forecasting every scheduled knockout fixture in scope (advance odds, decisive: ET/pens included).</summary>
+    public static void PrintKnockoutForecasts(KnockoutForecastReport r)
+    {
+        Ui.Hero(
+            $"[{Ui.Gold}]Knockout fixtures forecast[/]\n" +
+            $"[{Ui.Muted}]{r.ScopeLabel} · {r.Games.Count} game(s) · {r.IterationsPerGame:N0} simulations each · {r.ParameterLabel}[/]",
+            "Run knockout games", Ui.GoldColor);
+
+        if (r.Games.Count == 0)
+        {
+            Ui.Warning("No knockout fixtures to forecast in this scope.");
+            return;
+        }
+
+        var table = Ui.Table("[bold]Knockout fixtures — who advances[/]");
+        table.AddColumn(new TableColumn("Round").Centered());
+        table.AddColumn("Kickoff");
+        table.AddColumn("Tie [grey](favourite highlighted)[/]");
+        table.AddColumn(new TableColumn("Score").Centered());
+        table.AddColumn(new TableColumn("Top adv").RightAligned());
+        table.AddColumn(new TableColumn("Btm adv").RightAligned());
+        table.AddColumn(new TableColumn("xG").Centered());
+
+        foreach (var g in r.Games.OrderBy(x => x.KickoffUtc).ThenBy(x => x.MatchId))
+        {
+            var m = g.Report;
+            string home = g.Favourite == 1 ? $"[{Ui.Good}]{Markup.Escape(m.HomeName)}[/]" : Markup.Escape(m.HomeName);
+            string away = g.Favourite == -1 ? $"[{Ui.Good}]{Markup.Escape(m.AwayName)}[/]" : Markup.Escape(m.AwayName);
+            string flagH = Flags.Of(m.HomeCode);
+            string flagA = Flags.Of(m.AwayCode);
+            string proj = g.Projected ? " [grey]※[/]" : string.Empty;
+            string tie = $"{(flagH.Length > 0 ? flagH + " " : "")}{home} [grey]v[/] {away}{(flagA.Length > 0 ? " " + flagA : "")}{proj}";
+            string score = g.PredictedScore is { } s ? $"{s.HomeGoals}–{s.AwayGoals}" : "–";
+
+            table.AddRow(
+                ShortRound(g.Stage),
+                g.KickoffUtc.ToLocalTime().ToString("ddd HH:mm"),
+                tie,
+                score,
+                Ui.Heat(m.HomeWin),
+                Ui.Heat(m.AwayWin),
+                $"{m.AvgHomeGoals:0.0}–{m.AvgAwayGoals:0.0}");
+        }
+
+        AnsiConsole.Write(table);
+
+        if (r.AnyProjected)
+        {
+            AnsiConsole.MarkupLine($"[{Ui.Muted}]※ matchup projected from current form — its group has not finished, so the teams may change.[/]");
+        }
+
+        AnsiConsole.MarkupLine($"[{Ui.Muted}]Advance = share of simulations a side reaches the next round (extra time & penalties included). Forecast over {r.IterationsPerGame:N0} sims/game · {r.ElapsedSeconds:0.0}s.[/]");
+    }
+
+    private static string ShortRound(Stage stage) => stage switch
+    {
+        Stage.RoundOf32 => "R32",
+        Stage.RoundOf16 => "R16",
+        Stage.QuarterFinal => "QF",
+        Stage.SemiFinal => "SF",
+        Stage.ThirdPlacePlayoff => "3rd",
+        Stage.Final => "Final",
+        _ => stage.ToString(),
+    };
+
+    /// <summary>Print the recent-form strength nudges folded into a scheduled-fixtures forecast.</summary>
+    public static void PrintFormAdjustments(IReadOnlyList<FormAdjustment> adjustments)
+    {
+        if (adjustments is null || adjustments.Count == 0)
+        {
+            return;
+        }
+
+        var table = Ui.Table("[bold]📈 Recent form factored in[/] [grey](carried from already-played games)[/]");
+        table.AddColumn("Team");
+        table.AddColumn(new TableColumn("Form").Centered());
+        table.AddColumn("Last result");
+
+        foreach (var a in adjustments)
+        {
+            string flag = Flags.Of(a.TeamCode);
+            string team = $"{(flag.Length > 0 ? flag + " " : "")}{Markup.Escape(a.TeamName)}";
+            string sign = a.Delta >= 0 ? "+" : "−";
+            string colour = a.Delta > 0.05 ? Ui.Good : a.Delta < -0.05 ? Ui.Bad : Ui.Muted;
+            string move = $"[{colour}]{sign}{Math.Abs(a.Delta):0.0}[/]";
+            table.AddRow(team, move, $"[{Ui.Muted}]{Markup.Escape(a.Summary)}[/]");
+        }
+
+        AnsiConsole.Write(table);
+        AnsiConsole.MarkupLine($"[{Ui.Muted}]Form = strength points added/removed for upcoming games, from how each team's last result(s) compared with the model's expectation.[/]");
     }
 
     /// <summary>Print the play-by-play commentary transcript to the console (two voices).</summary>

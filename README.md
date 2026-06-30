@@ -48,8 +48,9 @@ Requires the .NET 8 SDK (or newer). On first build, NuGet restores Spectre.Conso
 1. Team vs Team                       – pick any two teams; single detailed match OR
                                         fast Monte-Carlo summary OR best-of-N event averages
 2. Run current scheduled match        – finds the next real fixture, confirms, simulates it
-3. Run scheduled games                – forecasts remaining fixtures (1M sims each) for a chosen day
-                                        (today / a date) or all of them, in one scannable table
+3. Run scheduled games                – forecasts remaining fixtures for a chosen day (today / a date)
+                                        or all of them, in one scannable table — group stage OR the
+                                        knockout bracket (today's R32 ties, a round, or all)
 4. Full tournament — official groups  – the real 2026 draw + bracket, single playthrough
                                         OR Monte Carlo over N tournaments
 5. Full tournament — current state     – locks already-played results, simulates the rest
@@ -91,6 +92,15 @@ favourite's win is spread over many winning scorelines, so the single most-commo
 often a draw or 1–0 even when one side is a clear favourite (true in real football too). Offers to pull
 the latest results first so the "remaining" set is current, and exports the whole slate to a styled
 **HTML** page, **CSV** or **JSON**.
+
+The same menu item also runs the **knockout bracket**. It dates every tie to its **official 2026 slot**
+(R32 opens June 28, the Final is July 19) and fills in the matchups from the **current group tables** —
+so today's Round-of-32 ties always have concrete teams. Where a group hasn't finished its standings are
+**projected from current form** (those ties are marked ※); later rounds stay as bracket placeholders
+("Winner R32-2") until the feeding tie has actually been played. Scope it to **today**, a single
+**round** (R32 / R16 / QF / SF / Final) or **all** resolved ties, then either **forecast** the advance
+odds (decisive — extra time and penalties fold into the winner) or **play out** one full detailed
+instance of each tie. Both export to **HTML**.
 
 ### Watching example matches
 

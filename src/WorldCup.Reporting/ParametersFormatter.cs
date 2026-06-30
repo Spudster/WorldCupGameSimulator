@@ -23,6 +23,7 @@ public static class ParametersFormatter
         model.AddRow("Match tempo variance", $"{g.MatchTempoVariance:0.000}");
         model.AddRow("Momentum strength", $"{g.MomentumStrength:0.000}");
         model.AddRow("Squad quality weight", $"{g.SquadQualityWeight:0.000}");
+        model.AddRow("Recent-form weight", $"{g.FormWeight:0.000}");
         model.AddRow("Extra-time goal scale", $"{g.ExtraTimeGoalScale:0.000}");
         model.AddRow("Shootout strength weight", $"{g.ShootoutStrengthWeight:0.000}");
         model.AddRow("RNG seed", g.Seed.ToString());

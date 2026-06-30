@@ -98,4 +98,41 @@ public class BracketTests
             Assert.Contains(source, qualifyingGroups);
         }
     }
+
+    [Fact]
+    public void AnnexC_Matches_The_Official_2026_Round_Of_32_Assignment()
+    {
+        // The real tournament's eight qualifying third-placed groups, and FIFA's published assignment
+        // (Annex C row 67): 1A–3E, 1B–3J, 1D–3B, 1E–3D, 1G–3I, 1I–3F, 1K–3L, 1L–3K.
+        var assignment = ThirdPlaceAnnexC.Assign("BDEFIJKL".ToCharArray());
+        Assert.NotNull(assignment);
+        Assert.Equal('E', assignment!['A']);
+        Assert.Equal('J', assignment['B']);
+        Assert.Equal('B', assignment['D']);
+        Assert.Equal('D', assignment['E']);
+        Assert.Equal('I', assignment['G']);
+        Assert.Equal('F', assignment['I']);
+        Assert.Equal('L', assignment['K']);
+        Assert.Equal('K', assignment['L']);
+    }
+
+    [Theory]
+    [InlineData("ABCDEFGH")]
+    [InlineData("BDEFIJKL")]
+    [InlineData("EFGHIJKL")]
+    [InlineData("ABCDEFGI")]
+    public void AnnexC_Every_Combination_Is_A_Valid_NoSameGroup_Permutation(string qualifying)
+    {
+        var assignment = ThirdPlaceAnnexC.Assign(qualifying.ToCharArray());
+        Assert.NotNull(assignment);
+
+        // Eight winner slots, each fed by a distinct group from the qualifying set, never its own group.
+        Assert.Equal(8, assignment!.Count);
+        Assert.Equal(new[] { 'A', 'B', 'D', 'E', 'G', 'I', 'K', 'L' }, assignment.Keys.OrderBy(c => c));
+        Assert.Equal(qualifying.OrderBy(c => c), assignment.Values.OrderBy(c => c));
+        foreach (var (winner, source) in assignment)
+        {
+            Assert.NotEqual(winner, source);
+        }
+    }
 }

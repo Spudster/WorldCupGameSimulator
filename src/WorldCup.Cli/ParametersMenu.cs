@@ -164,7 +164,7 @@ public sealed class ParametersMenu
             {
                 "Goal baseline", "Strength sensitivity", "Home advantage", "Draw coupling",
                 "Upset variance", "Match tempo variance", "Momentum strength", "Squad quality weight",
-                "Extra-time goal scale", "Shootout strength weight", "RNG seed",
+                "Recent-form weight", "Extra-time goal scale", "Shootout strength weight", "RNG seed",
             },
             ["Event rates"] = new[]
             {
@@ -211,6 +211,7 @@ public sealed class ParametersMenu
         "Match tempo variance" => g.MatchTempoVariance,
         "Momentum strength" => g.MomentumStrength,
         "Squad quality weight" => g.SquadQualityWeight,
+        "Recent-form weight" => g.FormWeight,
         "Extra-time goal scale" => g.ExtraTimeGoalScale,
         "Shootout strength weight" => g.ShootoutStrengthWeight,
         "Yellow cards / match" => g.Events.YellowCardsPerMatch,
@@ -239,6 +240,7 @@ public sealed class ParametersMenu
             case "Match tempo variance": g.MatchTempoVariance = val; break;
             case "Momentum strength": g.MomentumStrength = val; break;
             case "Squad quality weight": g.SquadQualityWeight = val; break;
+            case "Recent-form weight": g.FormWeight = val; break;
             case "Extra-time goal scale": g.ExtraTimeGoalScale = val; break;
             case "Shootout strength weight": g.ShootoutStrengthWeight = val; break;
             case "Yellow cards / match": g.Events.YellowCardsPerMatch = val; break;

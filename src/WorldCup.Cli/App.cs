@@ -112,7 +112,7 @@ public sealed partial class App
             .AddChoices(
                 "1.  ⚽ Team vs Team",
                 "2.  📅 Run current scheduled match",
-                "3.  🗓 Run scheduled games (today, a chosen day, or all remaining)",
+                "3.  🗓 Run scheduled games — group or knockout (today, a chosen day/round, or all)",
                 "4.  🏆 Simulate full tournament — official groups (from the start)",
                 "5.  ♻ Simulate full tournament — current state (continue from now)",
                 "6.  🧭 Group path to victory & defeat",
@@ -397,6 +397,19 @@ public sealed partial class App
             data = _session.Data;
         }
 
+        // Group-stage round robin or the knockout bracket? They have separate schedules and flows.
+        string slate = Nav.Show(new SelectionPrompt<string>()
+            .Title("Which fixtures would you like to run?")
+            .WrapAround()
+            .AddChoices(
+                "Group-stage fixtures",
+                "Knockout rounds (Round of 32 → Final)"));
+        if (slate.StartsWith("Knockout"))
+        {
+            RunKnockoutGames(data);
+            return;
+        }
+
         var playedPairs = _session.PlayedResults.Select(r => Pair(r.HomeCode, r.AwayCode)).ToHashSet();
         var remaining = data.GroupSchedule
             .Where(f => !playedPairs.Contains(Pair(f.HomeCode, f.AwayCode)))
@@ -461,6 +474,25 @@ public sealed partial class App
         }
 
         var p = PromptParameterSet();
+
+        // Recent form: carry each team's already-played games into its upcoming forecasts (e.g. Cape
+        // Verde's draw with Spain lifts them for Cape Verde v Uruguay). On by default; the user can skip.
+        var formAdjustments = FormModel.Compute(data, _session.PlayedResults, p);
+        if (formAdjustments.Count > 0)
+        {
+            if (Nav.Confirm(
+                    $"Factor in recent form from {_session.PlayedResults.Count} already-played game(s)? " +
+                    "[grey](e.g. a strong result last time out boosts a team going forward)[/]", true))
+            {
+                p = p.Clone(); // never mutate the shared Current/Starting parameter set
+                p.TeamFormDeltas = formAdjustments.ToDictionary(a => a.TeamCode, a => a.Delta, StringComparer.OrdinalIgnoreCase);
+            }
+            else
+            {
+                formAdjustments = Array.Empty<FormAdjustment>();
+            }
+        }
+
         AnsiConsole.Clear();
         Ui.RunConfig($"Run scheduled games — {scopeLabel}", p.Label, p.Global.Seed, "Fast (W/D/L + score)", n);
 
@@ -482,7 +514,10 @@ public sealed partial class App
         });
         sw.Stop();
 
-        var batch = new ScheduledForecastReport(n, p.Label, p.Global.Seed, sw.Elapsed.TotalSeconds, forecasts);
+        var batch = new ScheduledForecastReport(n, p.Label, p.Global.Seed, sw.Elapsed.TotalSeconds, forecasts)
+        {
+            FormAdjustments = formAdjustments,
+        };
 
         AnsiConsole.Clear();
         MatchReportFormatter.PrintScheduledForecasts(batch);
@@ -561,6 +596,206 @@ public sealed partial class App
         if (Nav.Confirm("💾 Write a full HTML report for every game (with an index) and open it?", true))
         {
             string dir = OutputFolder.Subdir($"scheduled_games_{fileTag}");
+            string index = HtmlExporter.ScheduledInstancesBundle(results, dir);
+            Ui.Success($"Wrote {results.Count} full game reports (+ commentary transcripts) and an index to {dir}");
+            ConsoleHelpers.SnapshotHtmlDir(dir);
+            ConsoleHelpers.OpenInBrowser(index);
+        }
+
+        ConsoleHelpers.Pause();
+    }
+
+    // --- 3b. Run knockout games (a sub-mode of "Run scheduled games") ---
+
+    /// <summary>
+    /// Forecast or play out the knockout bracket. Matchups come from the current group tables — projected
+    /// from current form where a group hasn't finished — so today's Round-of-32 ties always have concrete
+    /// teams. Later rounds stay as bracket placeholders until the feeding tie has actually been played.
+    /// </summary>
+    private void RunKnockoutGames(TournamentData data)
+    {
+        ulong seed = NextRunSeed();
+        var schedule = KnockoutScheduleResolver.Resolve(
+            data, _session.PlayedResults, _session.Current, seed, _session.IncludeThirdPlacePlayoff);
+
+        var upcoming = schedule.Fixtures.Where(f => !f.Played).ToList();
+        var runnable = upcoming.Where(f => f.IsResolved).ToList();
+        int pending = upcoming.Count - runnable.Count;
+
+        if (runnable.Count == 0)
+        {
+            Ui.Warning(schedule.Fixtures.Any(f => f.Played)
+                ? "Every knockout tie with known teams has already been played — nothing left to run."
+                : "No knockout ties can be resolved yet. Load group results (or use the live source) and try again.");
+            ConsoleHelpers.Pause();
+            return;
+        }
+
+        if (!schedule.AllGroupsComplete)
+        {
+            Ui.Warning(
+                $"Group(s) {string.Join(", ", schedule.IncompleteGroups)} haven't finished — those matchups are " +
+                "projected from current form (marked ※) and may change as results come in.");
+        }
+
+        if (pending > 0)
+        {
+            Ui.Info($"{pending} later-round tie(s) are still awaiting a result and will appear once their feeder ties are played.");
+        }
+
+        // Scope: everything, a single local day (handy for "today"), or a whole round.
+        static DateTime LocalDay(DateTime kickoffUtc) => kickoffUtc.ToLocalTime().Date;
+        var today = DateTime.Now.Date;
+        var scopeByLabel = new Dictionary<string, List<KnockoutScheduleFixture>>();
+        var labels = new List<string>();
+
+        string allLabel = $"All resolved knockout fixtures ({runnable.Count})";
+        scopeByLabel[allLabel] = runnable;
+        labels.Add(allLabel);
+
+        foreach (var d in runnable.Select(f => LocalDay(f.KickoffUtc)).Distinct().OrderBy(d => d))
+        {
+            var games = runnable.Where(f => LocalDay(f.KickoffUtc) == d).ToList();
+            string tag = d == today ? " (today)" : d == today.AddDays(1) ? " (tomorrow)" : "";
+            labels.Add($"{d:ddd MMM d}{tag} — {games.Count} game(s)");
+            scopeByLabel[labels[^1]] = games;
+        }
+
+        foreach (var stage in runnable.Select(f => f.Stage).Distinct().OrderBy(Stages.Rank))
+        {
+            var games = runnable.Where(f => f.Stage == stage).ToList();
+            labels.Add($"{Stages.DisplayName(stage)} — {games.Count} game(s)");
+            scopeByLabel[labels[^1]] = games;
+        }
+
+        string tz = TimeZoneInfo.Local.IsDaylightSavingTime(DateTime.Now) ? TimeZoneInfo.Local.DaylightName : TimeZoneInfo.Local.StandardName;
+        var fixtures = scopeByLabel[Nav.Show(new SelectionPrompt<string>()
+            .Title($"Which knockout fixtures to run? [grey](days are your local time — {Markup.Escape(tz)})[/]")
+            .PageSize(16)
+            .WrapAround()
+            .AddChoices(labels))]
+            .OrderBy(f => f.KickoffUtc).ThenBy(f => f.MatchId).ToList();
+
+        string scopeLabel = $"{fixtures.Count} knockout game(s)";
+
+        string mode = Nav.Show(new SelectionPrompt<string>()
+            .Title("What would you like to do with these ties?")
+            .WrapAround()
+            .AddChoices(
+                "Forecast — Monte Carlo advance odds (who goes through) for each tie",
+                "Play out once — a full detailed instance of each tie (extra time / penalties) as HTML"));
+
+        if (mode.StartsWith("Play out"))
+        {
+            PlayOutKnockoutGames(data, fixtures, scopeLabel);
+            return;
+        }
+
+        long n = ConsoleHelpers.PromptIterations("How many simulations per tie?", 50_000);
+        long totalSims = n * fixtures.Count;
+        if (!Nav.Confirm(
+                $"This will run [bold]{fixtures.Count}[/] tie(s) × [bold]{n:N0}[/] = [bold]{totalSims:N0}[/] detailed simulations. Proceed?", true))
+        {
+            return;
+        }
+
+        var p = PromptParameterSet();
+        AnsiConsole.Clear();
+        Ui.RunConfig($"Run knockout games — {scopeLabel}", p.Label, p.Global.Seed, "Detailed (advance odds)", n);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var games2 = ConsoleHelpers.RunWithProgress("Forecasting knockout ties", totalSims, (counter, ct) =>
+        {
+            var list = new List<KnockoutGameForecast>(fixtures.Count);
+            foreach (var f in fixtures)
+            {
+                var home = data.Team(f.HomeCode!);
+                var away = data.Team(f.AwayCode!);
+                var report = MonteCarloMatchRunner.RunAggregate(home, away, p, n, f.Stage, neutralVenue: true, counter, ct);
+                list.Add(new KnockoutGameForecast(f.MatchId, f.Stage, Stages.DisplayName(f.Stage), f.Label, f.KickoffUtc, f.Projected, report));
+                ct.ThrowIfCancellationRequested();
+            }
+
+            return list;
+        });
+        sw.Stop();
+
+        var batch = new KnockoutForecastReport(
+            n, p.Label, p.Global.Seed, sw.Elapsed.TotalSeconds, scopeLabel, games2.Any(g => g.Projected), games2);
+
+        AnsiConsole.Clear();
+        MatchReportFormatter.PrintKnockoutForecasts(batch);
+
+        Ui.Blank();
+        if (Nav.Confirm("💾 Download these knockout forecasts as a styled HTML page and open it?", true))
+        {
+            string path = OutputFolder.Resolve("knockout_forecasts.html");
+            HtmlExporter.KnockoutForecastsToHtml(batch, path);
+            Ui.Success($"Wrote {path}");
+            ConsoleHelpers.SnapshotHtml(path);
+            ConsoleHelpers.OpenInBrowser(path);
+        }
+
+        ConsoleHelpers.OfferExports("knockout_forecasts",
+            path => Exporters.ToJson(batch, path),
+            null,
+            path => HtmlExporter.KnockoutForecastsToHtml(batch, path));
+        ConsoleHelpers.Pause();
+    }
+
+    /// <summary>Play out ONE detailed instance of each knockout tie (extra time / penalties resolve level ties)
+    /// and write a full HTML report per game with an index.</summary>
+    private void PlayOutKnockoutGames(TournamentData data, IReadOnlyList<KnockoutScheduleFixture> fixtures, string scopeLabel)
+    {
+        var p = PromptParameterSet();
+        AnsiConsole.Clear();
+        Ui.RunConfig($"Play out knockout games — {scopeLabel}", p.Label, p.Global.Seed, "Detailed (one instance each)", fixtures.Count);
+
+        var results = ConsoleHelpers.RunWithProgress("Playing out each tie", fixtures.Count, (counter, ct) =>
+        {
+            var list = new List<MatchResult>(fixtures.Count);
+            var rng = new Xoshiro256(NextRunSeed());
+            foreach (var f in fixtures)
+            {
+                var home = data.Team(f.HomeCode!);
+                var away = data.Team(f.AwayCode!);
+                list.Add(MatchSimulator.Simulate(home, away, f.Stage, Fidelity.Detailed, p, ref rng, neutralVenue: true));
+                counter.Add(1);
+                ct.ThrowIfCancellationRequested();
+            }
+
+            return list;
+        });
+
+        AnsiConsole.Clear();
+        Ui.Header($"Knockout games — played out ({scopeLabel})");
+        var table = Ui.Table("[bold]Results[/]");
+        table.AddColumn(new TableColumn("Round").Centered());
+        table.AddColumn("Tie");
+        table.AddColumn(new TableColumn("Score").Centered());
+        table.AddColumn("Through");
+        foreach (var (f, r) in fixtures.Zip(results))
+        {
+            string method = r.Method switch
+            {
+                MatchMethod.ExtraTime => " [grey](a.e.t.)[/]",
+                MatchMethod.Penalties => $" [grey](pens {r.HomePens}-{r.AwayPens})[/]",
+                _ => string.Empty,
+            };
+            string winner = r.WinnerCode == r.HomeCode ? r.HomeName : r.WinnerCode == r.AwayCode ? r.AwayName : "—";
+            table.AddRow(
+                Markup.Escape(f.Label),
+                $"{Flags.Of(r.HomeCode)} {Markup.Escape(r.HomeName)} v {Markup.Escape(r.AwayName)} {Flags.Of(r.AwayCode)}",
+                $"[bold]{r.HomeGoals}-{r.AwayGoals}[/]{method}",
+                $"[{Ui.Good}]{Markup.Escape(winner)}[/]");
+        }
+
+        AnsiConsole.Write(table);
+
+        Ui.Blank();
+        if (Nav.Confirm("💾 Write a full HTML report for every tie (with an index) and open it?", true))
+        {
+            string dir = OutputFolder.Subdir("knockout_games");
             string index = HtmlExporter.ScheduledInstancesBundle(results, dir);
             Ui.Success($"Wrote {results.Count} full game reports (+ commentary transcripts) and an index to {dir}");
             ConsoleHelpers.SnapshotHtmlDir(dir);

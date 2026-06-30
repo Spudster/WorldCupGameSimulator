@@ -63,7 +63,9 @@ public readonly record struct Feeder(FeederKind Kind, SlotSpec Slot, int MatchId
 /// <param name="Top">Source of the first team.</param>
 /// <param name="Bottom">Source of the second team.</param>
 /// <param name="Label">Short display label, e.g. "R32-1".</param>
-public sealed record KnockoutMatchDef(int Id, Stage Stage, Feeder Top, Feeder Bottom, string Label);
+/// <param name="KickoffUtc">Scheduled kickoff (UTC) — the official 2026 date/time for this match number.</param>
+public sealed record KnockoutMatchDef(
+    int Id, Stage Stage, Feeder Top, Feeder Bottom, string Label, DateTime KickoffUtc = default);
 
 /// <summary>
 /// The fixed, FIFA-defined knockout bracket structure for the 48-team format: the explicit match
